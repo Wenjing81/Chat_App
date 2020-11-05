@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Chat_App</string>
+    <string name="chat_image">chatImage</string>
+    <string name="user_name">xxx</string>
+    <string name="email_address">xxxxxx@email.com</string>
+    <string name="user_password">******</string>
+    <string name="log_in_button">Log In</string>
+    <string name="sign_up_button">Sign Up</string>
+
+
+</resources>
