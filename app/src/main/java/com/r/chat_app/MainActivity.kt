@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
         //initial the two buttons,Sign up or Log in?
         initListener()
         //send messages from firebase
-        initFirebaseToken()
+        //initFirebaseToken()
 
     }
 
