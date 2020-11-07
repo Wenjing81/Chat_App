@@ -5,12 +5,10 @@ import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.android.gms.tasks.OnCompleteListener
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.ktx.auth
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
-import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.android.synthetic.main.activity_main.*
 
 
@@ -40,7 +38,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-
     /*Initial firebase authentication*/
     private fun initFirebaseAuth() {
         auth = Firebase.auth
@@ -52,98 +49,100 @@ class MainActivity : AppCompatActivity() {
         /* Button 1:Sign up */
 
         sign_up_button.setOnClickListener {
-            val userEmailAddress = user_email_address.text.toString()
-            CheckUsernameValid(userEmailAddress)
-            val password = user_password.text.toString()
-            CheckPasswordValid(password)
+
+            val userEmailAddress = user_email_address.text.toString().trim()
+            val resultEmail = checkUsernameValid(userEmailAddress)
+            if (!resultEmail) {
+                toastMaker("Your userName has no @")
+                return@setOnClickListener
+            }
+            val password = user_password.text.toString().trim()
+            val resultPassword = checkPasswordValid(password)
+            if (!resultPassword) {
+                toastMaker("Your password must be at least 6 characters.")
+                return@setOnClickListener
+            }
 
             /* read in user Email address and password to the firebase*/
             auth.createUserWithEmailAndPassword(userEmailAddress, password)
                 .addOnCompleteListener(this) {
                     if (it.isSuccessful) {
                         //successful signin or create a new user!
-                        Toast.makeText(
-                            this,
-                            "Successful registering with $userEmailAddress",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        toastMaker("Successful SignUp with:$userEmailAddress")
+                        addUserToDB()
                         val current_user = auth.currentUser!!
-                        StartNextActivity(current_user.email!!)
-
+                        startNextActivity(current_user.email!!)
                     } else {
-                        Log.d("!!!", "Failed to register with $userEmailAddress")
-                        Toast.makeText(
-                            this,
-                            "Failed to register with $userEmailAddress!",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        val x = "Failed to SignUp with:$userEmailAddress!"
+                        toastMaker(x)
+                        logMaker(x)
                     }
+                }
+                .addOnFailureListener {
+                    logMaker("Failed to SignUp($it)")
                 }
         }
 
-
         /* Button 2:Log in */
-
-
-
-
-
-
         login_button.setOnClickListener {
 
-            val userEmailAddress = user_email_address.text.toString()
-            //CheckUsernameValid(userEmailAddress)
-            val password = user_password.text.toString()
-            //CheckPasswordValid()
+            val userEmailAddress = user_email_address.text.toString().trim()
+            val result_email = checkUsernameValid(userEmailAddress)
+            if (!result_email) {
+                toastMaker("Your userName has no @")
+                return@setOnClickListener
+            }
+
+            val password = user_password.text.toString().trim()
+            val result_password = checkPasswordValid(password)
+            if (!result_password) {
+                toastMaker("Your password must be at least 6 characters.")
+                return@setOnClickListener
+            }
 
             auth.signInWithEmailAndPassword(userEmailAddress, password)
                 .addOnCompleteListener(this) { task ->
                     if (task.isSuccessful) {
                         // successful log in, with the signed-in user's information
-                        Log.d("sss", "logInWithEmail:success $userEmailAddress")
                         val user = auth.currentUser
-                        Toast.makeText(
-                            baseContext, "logInWithEmail123:success ${user?.email}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-
+                        toastMaker("Successful Login with:${user?.email}")
 
                         val intent = Intent(this, ChatPageActivity::class.java)
                         intent.putExtra(CURRENTUSER, user)
                         startActivity(intent)
                     } else {
-                        // If log in fails, display a message to the user.
-                        Log.d("TAG", "注册失败！")
-                        Toast.makeText(
-                            baseContext, "Authentication failed.",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        toastMaker("Failed to login")
                     }
                 }
                 .addOnFailureListener { exception ->
-                    Log.d("TAG", "Error 注册出问题啦", exception)
+                    logMaker("Failed to login($exception)")
                 }
         }
     }
 
-    private fun CheckUsernameValid(userEmailAddress: String) {
-        if (!userEmailAddress.contains("@")) {
-            Toast.makeText(this, "Your userName has no @", Toast.LENGTH_SHORT).show()
+    private fun checkUsernameValid(userEmailAddress: String): Boolean {
+        if (userEmailAddress.contains("@")) {
+            return true
         }
+        return false
     }
 
-    private fun CheckPasswordValid(password: String) {
-        if (!(password.length < 6)) {
-            Toast.makeText(
-                this,
-                "Your password must be more than 6 characters.",
-                Toast.LENGTH_SHORT
-            )
-                .show()
+    private fun checkPasswordValid(password: String): Boolean {
+        if (password.length >= 6) {
+            return true
         }
+        return false
     }
 
-    private fun StartNextActivity(current_user: String) {
+    private fun toastMaker(text: String) {
+        Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun logMaker(text: String) {
+        Log.d(CHAT_TAG, text)
+    }
+
+    private fun startNextActivity(current_user: String) {
         val intent = Intent(this, ChatPageActivity::class.java)
         intent.putExtra(CURRENTUSER, current_user)
         startActivity(intent)
@@ -155,32 +154,16 @@ class MainActivity : AppCompatActivity() {
         val it = Email(email)
         db.collection("AllUserCollection").document(email).set(it)
             .addOnSuccessListener {
-                Log.d("!!!", "successful to add user to DB")
+                logMaker("successful to add user to DB")
             }
             .addOnFailureListener {
-                Log.d("!!!", "failed to add a user.$it")
+                logMaker("failed to add a user.$it")
             }
-    }
-
-    private fun initFirebaseToken() {
-        FirebaseMessaging.getInstance().token.addOnCompleteListener(OnCompleteListener {
-
-            if (!it.isSuccessful) {
-                Log.w("TAG1", "Fetching FCM registration token failed", it.exception)
-                return@OnCompleteListener
-            }
-
-            // Get new FCM registration token
-            val token = it.result
-
-            // Log and toast
-
-            Toast.makeText(baseContext, "$token", Toast.LENGTH_SHORT).show()
-        })
     }
 
     companion object {
         const val CURRENTUSER = "Currentuser"
+        const val CHAT_TAG = "chat_app_log"
     }
 }
 
